@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>6.302/16.06 Interactive System Monitor</title>
+</head>
+
+<body>
+<h1 align="center">6.302/16.06 Interactive System Monitor</h1>
+<div style="height:80px; display: flex; justify-content: space-evenly;align-items:center;">
+    <div style="float:left;width:300px; display: flex; justify-content: space-evenly;align-items:center;">
+        Local IP: <input type="text" name="ipaddress" id="ipaddress" value="127.0.0.1" style="width:60px;"/>
+        Port: <input type="text" name="port" id="port" value="80" style="width:60px;"/>
+        <div>
+            <button id="ipportsubmit" style="vertical-align:middle"><span>(Re)Connect</span></button>
+        </div>
+    </div>
+    <div style="float:left;width:150px; display: flex; justify-content: space-evenly;align-items:center;">
+        <div style="width:100px;">
+        </div>
+    </div>
+    <div style="float:left;width:150px; display: flex; justify-content: space-evenly;align-items:center;">
+        <div style="width:100px;">CSV Generate?</div>
+        <div style="width:100px;">
+            <div class="ckbx-style-15">
+                <input type="checkbox" id="csv_enable" value="1" name="csv_enable">
+                <label for="csv_enable"></label>
+            </div>
+        </div>
+    </div>
+    <div style="float:left;width:300px;">
+        CSV Name: <input type="text" name="csv_name" id="csv_name"/>
+    </div>
+</div>
+<div style="height:80px; display: flex; justify-content: space-evenly;align-items:center;">
+    <div style="float:left;width:300px; display: flex; justify-content: space-evenly;align-items:center;">
+        <center>
+            <div>
+                <div class="ckbx-style-10">
+                    <input type="checkbox" id="pauseRun" checked="checked" onclick="swapTxt()">
+                    <label for="pauseRun"></label>
+                </div>
+                <div id="pauseRunTextOn"
+                     style="display:block; font-family:Courier; color:green; font-size:20px;">
+                    RUN:click to pause
+                </div>
+                <div id="pauseRunTextOff"
+                     style="display:none; font-family:Courier; color:red; font-size:20px;">
+                    PAUSE:click to run
+                </div>
+            </div>
+        </center>
+    </div>
+</div>
+<script>
+function swapTxt() {
+  var checkBox = document.getElementById("pauseRun");
+  var text1 = document.getElementById("pauseRunTextOn");
+  var text2 = document.getElementById("pauseRunTextOff");
+  if (checkBox.checked == true){
+    text1.style.display = "block";
+    text2.style.display = "none";
+  } else {
+    text1.style.display = "none";
+    text2.style.display = "block";
+  }
+}
+
+</script>
+
+<div id="gui_land" class="cp">
+</div>
+
+<script src="./src/js/d3.v3.min.js"></script>
+<script src="./src/js/nouislider.min.js"></script>
+<script src="./src/js/jinstr.js"></script>
+<script src="./src/js/time_series.js"></script>
+<script src="./src/js/slider.js"></script>
+<link rel="stylesheet" type="text/css" href="./src/css/checkboxes.min.css">
+<link rel="stylesheet" type="text/css" href="./src/css/nouislider.min.css">
+<link rel="stylesheet" type="text/css" href="./src/css/gui.css">
+
+</body>
+</html>

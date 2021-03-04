@@ -1,0 +1,470 @@
+var ui_change = new CustomEvent('ui_change');
+var field_built = new CustomEvent('field_built');
+
+//These two lines are used in conjunction with the ui_change event to make sure we don't fire hundreds off in a second for no reason(limits to ten max a second)
+var ready_to_fire = true;
+var isActive = true;
+
+//Use these when laying out colors!
+var standard_colors = ["blue","red","green","yellow","purple"];
+var mouseX=0;
+var mouseY = 0;
+document.addEventListener("mousemove",function(e){
+        mouseX = e.pageX;
+        mouseY = e.pageY;
+});
+
+//constants used for plot sizing:
+var PLOT_HEIGHT = 200;
+var PLOT_WIDTH = 300;
+
+//constants used for WS state machine:
+var IDLE = 0;
+var BUILDING = 1;
+var UPDATE =2;
+var RUNNING = 3;
+
+//system state variable for WS state machine
+var system_state = IDLE;
+
+// If buffer gets too big, toss away
+var MAX_DATA_BUFFER = 100000;
+var runPlotting = true; // Used to pause plotting.
+
+//data for building up csv logs:
+var MAX_CSV_BUFFER = 100000;
+var csv_record = false;
+var csv_rows = [];  // Values array by rows
+var csv_col_headers = []; //headers of outputs in order
+var csv_dom; 
+
+var user_inputs = []; //array for slider objects
+var div_list = [];
+var uniqueCnt = 0;
+var displayers = []; //array of hooks for plotter
+var reportCnt = []; //total number of displayed waveforms.
+
+var ws;
+
+var gui_land = document.getElementById("gui_land"); //where draggables end up!
+
+window.onfocus = function () { 
+  console.log("IN FOCUS");
+  isActive = true; 
+  document.body.style.background = "#eeeeee";
+}; 
+
+window.onblur = function () { 
+  console.log("OUT OF FOCUS");
+  isActive = false; 
+  document.body.style.background = "red";
+};
+
+
+window.onload = function(){
+    console.log("here");
+    ip = "127.0.0.1";
+    port = "6305";
+    document.getElementById("ipaddress").value = ip;
+    document.getElementById("port").value = port;
+    ws = new WebSocket("ws://"+ip+":"+port); //create new websocket to the ip of interest
+    ws.binaryType="arraybuffer";
+    ws.onopen = function(){
+    // Web Socket is connected, send data using send()
+      console.log("web socket established");
+      ws.send("~\n"); 
+    }; 
+    ws.onmessage = function (evt) {
+        MessageParser(evt);
+    };
+
+    ws.onclose = function(){ 
+      // websocket is closed.
+      console.log("Connection is closed..."); 
+    };  
+
+    document.addEventListener("ui_change", inputEmit);
+}
+
+sliderSav = [];
+var inputEmit = function(e){
+    var msgString = [];
+    if(typeof(e) == 'string') {
+	msgString = e;
+    } else {
+        msgString = String(e.detail["message"]);
+    }
+    var msgIndex = parseInt(msgString.substring(0,1));
+    while (sliderSav.length <= msgIndex) {
+	sliderSav.push("");
+    }
+    sliderSav[msgIndex] = msgString;
+    ws.send(msgString+"\n");
+}
+
+document.getElementById("ipportsubmit").addEventListener("mousedown",function(){
+    var ip = document.getElementById("ipaddress").value; //collect ip address
+    var port = document.getElementById("port").value;
+    
+    //Should add in some checker/an alert for won't connect case.
+    ws = new WebSocket("ws://"+ip+":"+port); //create websocket for ip addr.
+    ws.binaryType="arraybuffer";
+    
+    ws.onopen = function(){ // When websocket opens, request a build string.
+	ws.send("~\n"); // Sending ~  asks for build string.
+    }; 
+    ws.onmessage = function (evt) {
+        MessageParser(evt);
+    };
+
+    // websocket is closed.
+    ws.onclose = function(){ 
+	console.log("Connection is closed..."); 
+    };  
+});
+
+document.getElementById("csv_enable").addEventListener("change",function() {
+    csv_record  = document.getElementById("csv_enable").checked;
+    if(!csv_record) { // Just stopped recording, save data.
+        var nameo =  //  filename appended with date.
+	    document.getElementById("csv_name").value+"_"+String(Date.now()); 
+        exportCSV(nameo, csv_col_headers, csv_rows);
+	csv_rows = [];  // Clear the csv
+    }
+});
+
+document.getElementById("pauseRun").addEventListener("change",function() {
+    runPlotting  = document.getElementById("pauseRun").checked;
+});
+
+var WipeGUI = function(){
+    var len = div_list.length;
+    for (var i = 0; i<len; i++){
+        var to_junk = div_list.pop();
+        to_junk.remove();
+    }
+};
+
+// https://stackoverflow.com/questions/27078285/simple-throttle-in-js
+function throttle(func, wait, options) {
+   var context, args, result;
+   var timeout = null;
+   var previous = 0.0;
+   if (!options) options = {};
+   var later = function() {
+     previous = options.leading === false ? 0 : Date.now();
+     timeout = null;
+     result = func.apply(context, args);
+     if (!timeout) context = args = null;
+   };
+   return function() {
+     var now = Date.now();
+     if (!previous && options.leading === false) previous = now;
+     var remaining = wait - (now - previous);
+     context = this;
+     args = arguments;
+     if (remaining <= 0 || remaining > wait) {
+       if (timeout) {
+         clearTimeout(timeout);
+         timeout = null;
+       }
+       previous = now;
+       result = func.apply(context, args);
+       if (!timeout) context = args = null;
+     } else if (!timeout && options.trailing !== false) {
+       timeout = setTimeout(later, remaining);
+     }
+     return result;
+   };
+};
+
+// Generic helper functions
+var array_equals = function (array1,array2) {
+    // if the other array is a falsy value, return
+    if (!array1||!array2)
+        return false;
+
+    // compare lengths - can save a lot of time 
+    if (array1.length != array2.length)
+        return false;
+
+    for (var i = 0, l=array1.length; i < l; i++) {
+        if (array1[i] instanceof Array && array2[i] instanceof Array) {
+            if(!array_equals(array1[i],array2[i])){
+                return false;       
+            }
+        }           
+        else if (array1[i] != array2[i]) { 
+            return false;   
+        }           
+    }       
+    return true;
+}
+
+// Reshape single delimited list into array of strings.
+var reshapeDelim = function(inArray, delimiter) {
+    var gaps = [];
+    if(inArray[0] == delimiter) inArray = inArray.slice(1); // strip lead
+    for (var i = 0; i < inArray.length; i++){
+        if (inArray[i]==delimiter) gaps.push(i);  // find all delim
+    }
+    var dArray = [];
+    dArray.push(String.fromCharCode.apply(null,inArray.slice(0,gaps[0])));
+    for (var i=0; i<gaps.length-1; i++){
+        dArray.push(String.fromCharCode.apply(null,inArray.slice(gaps[i]+1,gaps[i+1])));
+    }
+    return dArray;
+}
+
+// Merge arrayBuffers into a new arrayBuffer.
+var mergeArrBuf = function(AB1, AB2) {
+    var mergedBuf = new ArrayBuffer(AB1.byteLength + AB2.byteLength);
+    var mergedBufInt = new Uint8Array(mergedBuf);
+    mergedBufInt.set(new Uint8Array(AB1));
+    mergedBufInt.set((new Uint8Array(AB2)), AB1.byteLength);
+    return mergedBuf;
+};
+
+MAX_BUILD_STR = 500;
+// Test for beginning of build string in Uint8Array ("\fB" character pair).
+var isBldStrt = function(e,index,dataArr) {
+    return((e == 12) && (dataArr[index+1] == 66));
+}
+// Test for end of build string in Uint8Array,("\f\n" character pair).
+var isBldEnd = function(e,index,dataArr) {
+    return((e == 13) && (dataArr[index+1] == 10));
+}
+
+// Test for beginning of data string in Uint8Array, ("\fR" character pair).
+var isDataStrt = function(e,index,dataArr) {
+    return((e == 12) && (dataArr[index+1] == 82));
+}
+
+var tDataSave = new ArrayBuffer(4);
+var pltBuffer = [];
+var bldStrSave = [];
+
+// Receive packet with build strings and plot data, organize and process
+var MessageParser = function(evt) {
+    // Merge new packet with what's left of the last packet, and make int view
+    var tData = mergeArrBuf(tDataSave, evt.data);
+    var tDataB = new Uint8Array(tData);  // Need Uint8 view for comparisons
+    var startNext = 0;
+
+    // Find build string in the packet \fB->\f\n, and if so, process.
+    // Loop to find all the build strings.
+    // Data before a last build string is discarded.
+    var endInd = -1;
+    for(let NextB = startNext; NextB < tDataB.length; ) {
+	var beginBld = NextB + tDataB.slice(NextB).findIndex(isBldStrt);
+	if(beginBld < NextB) {  // No build strings, break;
+	    break;
+	} else { // looks like start of a build string.
+	    NextB = beginBld+1;  
+	    var maxSearch = Math.min(MAX_BUILD_STR+beginBld,tDataB.length);
+            var endBld = beginBld
+		+ tDataB.slice(beginBld,maxSearch).findIndex(isBldEnd);
+	    if(endBld > beginBld) { // Got Bld str, next after bld str.
+		startNext = endBld+1;  // Found bld, set up for next search
+		bldStr = tDataB.slice(beginBld+2,endBld);
+		if(array_equals(bldStrSave,bldStr)) {
+		    // If build str unchanged, emit the slider settings
+		    inputEmit("-1");  //Confirm build string received.
+		    for(let rp = 0; rp < 2; rp++) {  // Send slider vals twice
+			for(let ns = 0; ns < sliderSav.length; ns++) {
+			    inputEmit(sliderSav[ns]);
+			}
+		    }
+		} else { // Bld str changed.
+		    bldStrSave = bldStr.slice(0);
+		    MPBuild(bldStr);
+		    pltBuffer = [];  // Create an array of plot-trace arrays.
+		    for (let i = 0; i < displayers.length; i++) {
+			for (let j = 0; j < reportCnt[i];j++) {
+			    pltBuffer.push([])
+			}
+		    }
+		}
+		inputEmit("-1");  //Confirm build string received.
+	    }
+	}
+    }
+
+    // Packet has multiple data strings, each one starting with
+    // \fR character pair. Start searching from startNext (startNext could
+    // be non-zero if we just found a build string).  Transpose real time data,
+    // arriving as an array whose elements are timepoints-for-all-traces, into
+    // an array elements are traces-for-all-timepoints. Handing plot generator
+    // an array of trace-waveforms dramatically accelerate graphical plot
+    // generation.
+    if((pltBuffer != []) && (pltBuffer.length > 0)) { 
+	var msgSz = 4*pltBuffer.length; // 4 bytes per float.
+	let pltPts = false;
+	while(true) {
+	    startInd = startNext+tDataB.slice(startNext).findIndex(isDataStrt);
+
+	    if (startInd >= 0) {
+		startNext = startInd;
+		let msgSt = startInd + 2;
+		let msgEnd = msgSt + msgSz;
+		if (tDataB[msgEnd] == 10) { // Ends in \n, Full frame!
+		    startNext = msgEnd;
+		    fData = new Float32Array(tData.slice(msgSt,msgEnd));
+		    if(csv_record && (csv_rows.length < MAX_CSV_BUFFER)) {
+			csv_rows.push(fData); // Record rows for CSV
+		    }
+		    pltPts = true; // Transpose data in to plot buffer.
+		    for(let i = 0; i < pltBuffer.length;  i++) { 
+			pltBuffer[i].push(fData[i]);
+		    }
+		} else break;
+	    } else break;
+	}
+	if (pltPts) {  // Plot data and clear buffers.
+	    MPData(pltBuffer);
+	    for(let i = 0; i < pltBuffer.length;  i++) {
+		pltBuffer[i] = [];
+	    }
+	}
+	document.dispatchEvent(field_built);
+    } 
+
+    // Save any bytes at the end of a packet, as they will likely be the
+    // beginning bytes of the first build or data string in the next packet. 
+    // But, if the buffer is huge, then there has been a communication failure,
+    // and packet data should be dumped.
+    tDataSave = tData.slice(startNext); // Unused data for next time.
+    if(tDataSave.byteLength > MAX_DATA_BUFFER) { // Huge buffer, reset hard.
+	tDataSave = new ArrayBuffer(4);
+	inputEmit("~");
+    }
+};
+
+// Send data to plotter.
+var MPData = function(fa) {
+    var dataCnt = 0;
+    if(runPlotting) {
+	for (var i = 0; i < displayers.length; i++){
+            var data = [];
+            for (var j = 0; j < reportCnt[i];j++){
+		data.push([]);
+		for (var k = 0; k < fa[dataCnt].length; k++) {
+		    data[j].push(fa[dataCnt][k]);
+		}
+		dataCnt+=1;
+            }
+            displayers[i].step(data);
+	}
+    }
+};
+
+// Parse build string and setup plots and sliders.
+var lastBuildString = [];
+var MPBuild = function(bldStrU8) {
+    system_state = BUILDING;
+    user_inputs = [];
+    csv_col_headers = [];
+    csv_rows = [];
+    displayers = [];
+    reportCnt = [];
+    uniqueCnt = 0;
+
+    // Clean up first, then build.
+    WipeGUI();
+
+    // Pull ~ delimited substrings apart in to seperate arrays.
+    var build_array = reshapeDelim(bldStrU8, 126); // ~  delim
+    for (var i = 0; i < build_array.length;){
+        let newdiv = document.createElement("div"); //new div
+        newdiv.setAttribute("id","box_"+String(uniqueCnt)); 
+        div_list.push(newdiv); //push to div list (for DOM management)
+        newdiv.setAttribute("class","cp-item");
+        gui_land.appendChild(newdiv);
+	
+	// Read in common plotter/slider parameters
+	let title = build_array[i+1];
+	let low = parseFloat(build_array[i+2]);
+	let high = parseFloat(build_array[i+3]);
+
+	// Generate sliders and plots.
+	let whichFrob = build_array[i];
+        switch (whichFrob){ // 
+        case "S": //slider
+	    let res = 1.0e-2;  // Resolution always 0.01.
+	    if (low != high) { // Don't display zero length slider.
+		user_inputs.push(new Slider(uniqueCnt,title,
+					    low,high,res,false));
+	    }
+	    i += 4;  // Move to next slider/plot.
+	    break;
+        case "P": //plot:
+	    let x_width = parseInt(build_array[i+4]);
+	    let trace_count = parseInt(build_array[i+5]);
+	    reportCnt.push(trace_count);
+	    displayers.push(
+		new Time_Series(uniqueCnt,title,
+				PLOT_WIDTH,PLOT_HEIGHT,
+				x_width, [low,high],
+				trace_count,
+				standard_colors.slice(0,trace_count+1))
+	    );
+	    for(let i = 0; i < trace_count; i++) {  // One title per trace
+		let heading = title;
+		if(i > 0) heading = title + i;
+		csv_col_headers.push(heading);
+	    }
+	    i += 6;  // Move to next slider/plot.
+	    break;
+	default:
+	    break;
+        }
+        uniqueCnt += 1;
+    }
+};
+
+/* Based off of code from here:
+https://stackoverflow.com/questions/14964035/how-to-export-javascript-array-info-to-csv-on-client-side
+*/
+var exportCSV = function(filename, headers, rows) {
+    // Make sure headers and row data match.
+    console.assert(headers.length == rows[0].length,'row header mismatch');
+    var csvFile = '';
+
+    // Create comma-seperated line, no comma at EOL.
+    csvFile = headers[0] + ',';
+    for (let i = 1; i < headers.length-1; i++) {
+	csvFile += headers[i] + ',';
+    }
+    csvFile += headers[headers.length-1] + '\n';
+
+
+    // Create comma-sep lines, no comma at EOL.
+    for (let i = 0; i < rows.length; i++) {
+	for(let j = 0; j < rows[i].length-1; j++) {
+            csvFile += rows[i][j] + ',';
+	}
+	csvFile += rows[i][rows[i].length-1] + '\n';
+    }
+
+    // Blob is downloaded to a file by creating a virtual file link,
+    // virtually clicking on it, and the deleting the link.
+    var blob = new Blob([csvFile], { type: 'text/csv;charset=utf-8;' });
+    if (navigator.msSaveBlob) { // IE 10+
+        navigator.msSaveBlob(blob, filename);
+    } else {
+        var link = document.createElement("a");
+        if (link.download !== undefined) { // feature detection
+            // Browsers that support HTML5 download attribute
+            var url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+}
+
+
+
