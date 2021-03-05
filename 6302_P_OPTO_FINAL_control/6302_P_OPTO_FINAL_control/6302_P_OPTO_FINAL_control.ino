@@ -139,6 +139,7 @@ int samplesSinceFlip = 0;
 float lastFlip;
 
 float oldErrorDeltaRPS = 0;
+float error_sum = 0; // ALBAN
 void loop() {  
 
   // Initializes, gets GUI updates.
@@ -170,9 +171,10 @@ void loop() {
   // Compute the error and the motor cmd = nominal+Kff*desired+Kp*Err.
   float measuredDeltaRPS = measRPS - nominalRPS;
   float errorDeltaRPS = (desiredDeltaRPS - measuredDeltaRPS);
+  error_sum = error_sum + errorDeltaRPS; // ALBAN
   float fdBack = my6302.getSlider(KP)*errorDeltaRPS;
   /* float fdForward = my6302.getSlider(KFF)*desiredDeltaRPS; //desiredDeltaRPS; */
-  float fdForward = my6302.getSlider(KFF)*(0.005/2)*(errorDeltaRPS - oldErrorDeltaRPS); // ALBAN
+  float fdForward = my6302.getSlider(KFF)*(0.005/2)*(error_sum); // ALBAN
   oldErrorDeltaRPS = errorDeltaRPS;
 
   // Note scaling by the sensitivity of speed to cmd.
