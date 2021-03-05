@@ -171,7 +171,8 @@ void loop() {
   float measuredDeltaRPS = measRPS - nominalRPS;
   float errorDeltaRPS = (desiredDeltaRPS - measuredDeltaRPS);
   float fdBack = my6302.getSlider(KP)*errorDeltaRPS;
-  float fdForward = my6302.getSlider(KFF)*desiredDeltaRPS; //desiredDeltaRPS;
+  /* float fdForward = my6302.getSlider(KFF)*desiredDeltaRPS; //desiredDeltaRPS; */
+  float fdForward = my6302.getSlider(KFF)*(0.005/2)*(errorDeltaRPS - oldErrorDeltaRPS); // ALBAN
   oldErrorDeltaRPS = errorDeltaRPS;
 
   // Note scaling by the sensitivity of speed to cmd.
