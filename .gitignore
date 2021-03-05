@@ -1,0 +1,4 @@
+# ignore (don't track) the following
+
+# file type
+**.swp

@@ -19,7 +19,7 @@ LIB6302_ADC(sampleBufN);  // ADC sample buffer of 500
 #define nominalRPS 50.0 // Nominal Rotations per second.
 #define ScaleCMD 250.0   // Scale factor: Cmd change -> rate of change of propeller RPS 
 #define ticksPerPeriod 2 // See lab
-#define ticksPerUpdate 2
+#define ticksPerUpdate 1
 
 // ************************************************************************
 // End of Constants and code for Users to Modify 
