@@ -15,10 +15,10 @@ LIB6302_ADC(sampleBufN);  // ADC sample buffer of 500
 // ************************************************************d
 #define OSCILLOSCOPE 0  // 0: Controller, 1:50ms window, 2:500us window
 #define togglePeriod 3.5 // seconds between +/- toggling of desired value.
-#define nominalCmd 0.10 // Motor cmd for nominal speed.
+#define nominalCmd 0.21 // Motor cmd for nominal speed.
 #define nominalRPS 50.0 // Nominal Rotations per second.
 #define ScaleCMD 250.0   // Scale factor: Cmd change -> rate of change of propeller RPS 
-#define ticksPerPeriod 2 // See lab
+#define ticksPerPeriod 4 // See lab
 #define ticksPerUpdate 1
 
 // ************************************************************************
@@ -173,9 +173,10 @@ void loop() {
   float errorDeltaRPS = (desiredDeltaRPS - measuredDeltaRPS);
   error_sum = error_sum + errorDeltaRPS; // ALBAN
   float fdBack = my6302.getSlider(KP)*errorDeltaRPS;
-  /* float fdForward = my6302.getSlider(KFF)*desiredDeltaRPS; //desiredDeltaRPS; */
-  float fdForward = my6302.getSlider(KFF)*(0.005/2)*(error_sum); // ALBAN
-  oldErrorDeltaRPS = errorDeltaRPS;
+  float fdForward = my6302.getSlider(KFF)*desiredDeltaRPS; //desiredDeltaRPS; FF Source code
+  /* float fdForward = my6302.getSlider(KFF)*oldErrorDeltaRPS; //ALBAN Scenario 2 */
+  /* float fdForward = my6302.getSlider(KFF)*(0.005/2)*(error_sum); // ALBAN Integrator */
+  /* oldErrorDeltaRPS = errorDeltaRPS; // ALBAN Integrator */
 
   // Note scaling by the sensitivity of speed to cmd.
   float motorCmd = nominalCmd + (fdForward + fdBack)/ScaleCMD;
