@@ -179,18 +179,18 @@ void loop() {
   float measuredDeltaRPS = measRPS - nominalRPS;
   errorDeltaRPSold = errorDeltaRPS; // A.COBI
   errorDeltaRPS = (desiredDeltaRPS - measuredDeltaRPS);
-  error_sum = error_sum + ((errorDeltaRPS + errorDeltaRPSold)/2)*(deltaT - deltaTold); // ALBAN multiply by deltaT
   float fdBack = my6302.getSlider(KP)*errorDeltaRPS;
   /* float fdForward = my6302.getSlider(KFF)*desiredDeltaRPS; //desiredDeltaRPS; FF Source code */
   /* float fdForward = my6302.getSlider(KFF)*oldErrorDeltaRPS; //ALBAN Scenario 2 */
   /* float fdForward = fdForward + my6302.getSlider(KFF)*errorDeltaRPS/2*(deltaT - deltaTold); // ALBAN Integrator */
   float fdForward = my6302.getSlider(KFF)*error_sum; // A.COBI Integrator
+  error_sum = error_sum + ((errorDeltaRPS + errorDeltaRPSold)/2)*(deltaT - deltaTold); // ALBAN multiply by deltaT
   // A.COBI Anti-windup
-  if (fdForward > 5) {
-  	fdForward = 5;
+  if (fdForward > 20) {
+  	fdForward = 20;
   }
-  else if (fdForward < -5) {
-  	fdForward = -5;
+  else if (fdForward < -20) {
+  	fdForward = -20;
   }
 
   /* Serial.println("fdBack"); // A.COBI */
