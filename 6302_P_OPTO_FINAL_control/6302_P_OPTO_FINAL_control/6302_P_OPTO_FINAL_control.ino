@@ -16,10 +16,10 @@ LIB6302_ADC(sampleBufN);  // ADC sample buffer of 500
 #define OSCILLOSCOPE 0  // 0: Controller, 1:50ms window, 2:500us window
 #define togglePeriod 3.5 // seconds between +/- toggling of desired value.
 /* #define nominalCmd 0.10 // Motor cmd for nominal speed. 10 for P control + 1 encoder */
-#define nominalCmd 0.19 // Motor cmd for nominal speed. 19 for P control + 2 encoders
+#define nominalCmd 0.10 // Motor cmd for nominal speed. 19 for P control + 2 encoders
 #define nominalRPS 50.0 // Nominal Rotations per second.
 #define ScaleCMD 250.0   // Scale factor: Cmd change -> rate of change of propeller RPS 
-#define ticksPerPeriod 4 // See lab, 2 if one optical encoder, 4 if using two encoders
+#define ticksPerPeriod 2 // See lab, 2 if one optical encoder, 4 if using two encoders
 #define ticksPerUpdate 1
 
 // ************************************************************************
@@ -139,10 +139,12 @@ void setup() {
 int samplesSinceFlip = 0;
 float lastFlip;
 
-float oldErrorDeltaRPS = 0;
 float error_sum = 0; // ALBAN
 int deltaT = 0; // A.COBI
 int deltaTold = 0; // A.COBI
+float errorDeltaRPSold; // A.COBI
+float errorDeltaRPS = 0; // A.COBI
+/* Serial.println("hello"); */
 void loop() {  
 
   // Initializes, gets GUI updates.
@@ -164,8 +166,8 @@ void loop() {
   // Wait until a Speed reading, or 
   while (!setSpeedFlag && (int(loopTimer) < MaxLoopWait)) {};
   setSpeedFlag = false; 
-  deltaTold = deltaT; // A.COBI
-  deltaT = loopTimer; // A.COBI
+  deltaTold = deltaT/(10^6); // A.COBI , [seconds]
+  deltaT = loopTimer/(10^6); // A.COBI , [seconds]
   loopTimer = 0; // gives loop time units in microseconds, 
 
   // Get slider desired value and possibly toggle.
@@ -175,14 +177,24 @@ void loop() {
 
   // Compute the error and the motor cmd = nominal+Kff*desired+Kp*Err.
   float measuredDeltaRPS = measRPS - nominalRPS;
-  float errorDeltaRPS = (desiredDeltaRPS - measuredDeltaRPS);
-  /* error_sum = error_sum + errorDeltaRPS; // ALBAN multiply by deltaT */
+  errorDeltaRPSold = errorDeltaRPS; // A.COBI
+  errorDeltaRPS = (desiredDeltaRPS - measuredDeltaRPS);
+  error_sum = error_sum + ((errorDeltaRPS + errorDeltaRPSold)/2)*(deltaT - deltaTold); // ALBAN multiply by deltaT
   float fdBack = my6302.getSlider(KP)*errorDeltaRPS;
   /* float fdForward = my6302.getSlider(KFF)*desiredDeltaRPS; //desiredDeltaRPS; FF Source code */
   /* float fdForward = my6302.getSlider(KFF)*oldErrorDeltaRPS; //ALBAN Scenario 2 */
-  float fdForward = fdForward + my6302.getSlider(KFF)*errorDeltaRPS/2*(deltaT - deltaTold); // ALBAN Integrator
-  /* oldErrorDeltaRPS = errorDeltaRPS; // ALBAN Integrator */
+  /* float fdForward = fdForward + my6302.getSlider(KFF)*errorDeltaRPS/2*(deltaT - deltaTold); // ALBAN Integrator */
+  float fdForward = my6302.getSlider(KFF)*error_sum; // A.COBI Integrator
+  // A.COBI Anti-windup
+  if (fdForward > 5) {
+  	fdForward = 5;
+  }
+  else if (fdForward < -5) {
+  	fdForward = -5;
+  }
 
+  /* Serial.println("fdBack"); // A.COBI */
+  /* Serial.println(fdBack); // A.COBI */
   // Note scaling by the sensitivity of speed to cmd.
   float motorCmd = nominalCmd + (fdForward + fdBack)/ScaleCMD;
   
