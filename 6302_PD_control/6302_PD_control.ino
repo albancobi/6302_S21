@@ -9,7 +9,7 @@ LIB6302_ADC(64);  // ADC sample buffer
 #define theta_0 0  // Angle linearized about theta_A = 0 (horizontal).
 #define cmdNom1 0.65   // Motor cmd to hold propeller at theta_0.
 #define cmdNom2 0.5   // Motor cmd to hold second prop 
-#define angleScale 6.28     // (NOTE SIGN) Scale to make rotation = 2*pi
+#define angleScale -6.28     // (NOTE SIGN) Scale to make rotation = 2*pi
 #define mBack   2     // Number of sample points back for delta calc.
 #define controllerUpdatePeriod 1000 // Update period in microseconds.
 #define monitorUpdatePeriod controllerUpdatePeriod // monitor update period
@@ -43,7 +43,7 @@ String config_message = "\fB~" + sliders + monPlots + "\r";
 #define motorNPWM pwmB1
 
 // Setup for PD control.
-float pastThetaErr[mBack+1];  // Stores past errors for deriv approx
+float pastThetaErr[mBack+1];  // Stores past errors in an array of [x] elements for deriv approx
 void setup() {
   Serial.begin(115200);
   my6302.setup(config_message, togglePeriod);
