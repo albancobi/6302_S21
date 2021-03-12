@@ -15,10 +15,11 @@ LIB6302_ADC(sampleBufN);  // ADC sample buffer of 500
 // ************************************************************d
 #define OSCILLOSCOPE 0  // 0: Controller, 1:50ms window, 2:500us window
 #define togglePeriod 3.5 // seconds between +/- toggling of desired value.
-#define nominalCmd 0.21 // Motor cmd for nominal speed.
+/* #define nominalCmd 0.10 // Motor cmd for nominal speed. 10 for P control + 1 encoder */
+#define nominalCmd 0.19 // Motor cmd for nominal speed. 19 for P control + 2 encoders
 #define nominalRPS 50.0 // Nominal Rotations per second.
 #define ScaleCMD 250.0   // Scale factor: Cmd change -> rate of change of propeller RPS 
-#define ticksPerPeriod 4 // See lab
+#define ticksPerPeriod 4 // See lab, 2 if one optical encoder, 4 if using two encoders
 #define ticksPerUpdate 1
 
 // ************************************************************************
@@ -140,6 +141,8 @@ float lastFlip;
 
 float oldErrorDeltaRPS = 0;
 float error_sum = 0; // ALBAN
+int deltaT = 0; // A.COBI
+int deltaTold = 0; // A.COBI
 void loop() {  
 
   // Initializes, gets GUI updates.
@@ -161,7 +164,9 @@ void loop() {
   // Wait until a Speed reading, or 
   while (!setSpeedFlag && (int(loopTimer) < MaxLoopWait)) {};
   setSpeedFlag = false; 
-  loopTimer = 0;
+  deltaTold = deltaT; // A.COBI
+  deltaT = loopTimer; // A.COBI
+  loopTimer = 0; // gives loop time units in microseconds, 
 
   // Get slider desired value and possibly toggle.
   float desired = my6302.getSlider(DESIRED);
@@ -171,11 +176,11 @@ void loop() {
   // Compute the error and the motor cmd = nominal+Kff*desired+Kp*Err.
   float measuredDeltaRPS = measRPS - nominalRPS;
   float errorDeltaRPS = (desiredDeltaRPS - measuredDeltaRPS);
-  error_sum = error_sum + errorDeltaRPS; // ALBAN
+  /* error_sum = error_sum + errorDeltaRPS; // ALBAN multiply by deltaT */
   float fdBack = my6302.getSlider(KP)*errorDeltaRPS;
-  float fdForward = my6302.getSlider(KFF)*desiredDeltaRPS; //desiredDeltaRPS; FF Source code
+  /* float fdForward = my6302.getSlider(KFF)*desiredDeltaRPS; //desiredDeltaRPS; FF Source code */
   /* float fdForward = my6302.getSlider(KFF)*oldErrorDeltaRPS; //ALBAN Scenario 2 */
-  /* float fdForward = my6302.getSlider(KFF)*(0.005/2)*(error_sum); // ALBAN Integrator */
+  float fdForward = fdForward + my6302.getSlider(KFF)*errorDeltaRPS/2*(deltaT - deltaTold); // ALBAN Integrator
   /* oldErrorDeltaRPS = errorDeltaRPS; // ALBAN Integrator */
 
   // Note scaling by the sensitivity of speed to cmd.
@@ -211,8 +216,3 @@ void loop() {
   #endif
 }
 
-
-  
-
-
-  
