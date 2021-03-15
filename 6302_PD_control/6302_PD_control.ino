@@ -10,7 +10,7 @@ LIB6302_ADC(64);  // ADC sample buffer
 #define cmdNom1 0.45   // Motor cmd to hold propeller at theta_0. originally 0.65
 #define cmdNom2 0.5   // Motor cmd to hold second prop 
 #define angleScale -6.28     // (NOTE SIGN) Scale to make rotation = 2*pi
-#define mBack   10     // Number of sample points back for delta calc., originally 2
+#define mBack   6     // Number of sample points back for delta calc., originally 2
 #define controllerUpdatePeriod 1000 // Update period in microseconds.
 #define monitorUpdatePeriod controllerUpdatePeriod // monitor update period
 // End Constants for Users to Modify **************************************
