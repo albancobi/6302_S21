@@ -1,4 +1,10 @@
 # ignore (don't track) the following
 
+# directories
+6302_PD_control/build-teensy36/*
+
 # file type
 **.swp
+
+# exception to the rule
+!6302_PD_control/build-teensy36/.gitkeep
