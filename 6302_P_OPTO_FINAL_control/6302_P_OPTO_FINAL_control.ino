@@ -111,6 +111,7 @@ void iservRPS() {
 #define motorDistNPWMpin pwmB2_T
 #define nOptoSensor 7
 elapsedMicros loopTimer = 0;  // Loop runs at least 10xsecond
+elapsedMicros myLoopTimer = 0; // A.COBI
 
 void setup() {
   Serial.begin(115200);
@@ -167,8 +168,8 @@ void loop() {
   while (!setSpeedFlag && (int(loopTimer) < MaxLoopWait)) {};
   setSpeedFlag = false; 
   deltaTold = deltaT/(10^6); // A.COBI , [seconds]
-  deltaT = loopTimer/(10^6); // A.COBI , [seconds]
-  loopTimer = 0; // gives loop time units in microseconds, 
+  deltaT = myLoopTimer/(10^6); // A.COBI , [seconds]
+  myLoopTimer = 0; // gives loop time units in microseconds, 
 
   // Get slider desired value and possibly toggle.
   float desired = my6302.getSlider(DESIRED);
@@ -185,12 +186,14 @@ void loop() {
   /* float fdForward = fdForward + my6302.getSlider(KFF)*errorDeltaRPS/2*(deltaT - deltaTold); // ALBAN Integrator */
   float fdForward = my6302.getSlider(KFF)*error_sum; // A.COBI Integrator
   error_sum = error_sum + ((errorDeltaRPS + errorDeltaRPSold)/2)*(deltaT - deltaTold); // ALBAN multiply by deltaT
+
   // A.COBI Anti-windup
-  if (fdForward > 20) {
-  	fdForward = 20;
+   /* Anti-wind-up is always implemented on the error_sum, we clip the error sum so it doesn't get too large. */
+  if (error_sum > 20) {
+  	error_sum = 20;
   }
-  else if (fdForward < -20) {
-  	fdForward = -20;
+  else if (error_sum < -20) {
+  	error_sum = -20;
   }
 
   /* Serial.println("fdBack"); // A.COBI */
@@ -221,7 +224,8 @@ void loop() {
     float loopStatus[3];
     loopStatus[DESIREDPLOT] = desiredDeltaRPS;
     loopStatus[MEAS] = measuredDeltaRPS;
-    loopStatus[CMD] = motorCmd;
+    /* loopStatus[CMD] = motorCmd; */
+    loopStatus[CMD] = error_sum; // A.COBI This plots error_sum instead of motor command
     my6302.sendStatus(3,loopStatus);
   } 
   else Serial.println(measuredDeltaRPS); 
