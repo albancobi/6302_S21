@@ -58,6 +58,7 @@ void setup() {
 elapsedMicros loopTimer; // loopTime used to force precise deltaT between starts
 #define PRINTHEADROOM 1
 
+// This is the main loop in an arduino program. In a regular c++ program the main loop 
 void loop() {  
   // Initializes, gets GUI updates.
   my6302.startloop();
