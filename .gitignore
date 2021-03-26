@@ -1,7 +1,11 @@
 # ignore (don't track) the following
 
 # directories
-6302_PD_control/build-teensy36/*
+# 6302_PD_control/build-teensy36/*
+lab_1_propeller_speed_control/6302_P_OPTO_FINAL_control/build-teensy36/*
+lab_2_propeller_arm_position_control/6302_PD_control/build-teensy36/*
+lab_3_propeller_arm_position_control_II/6302_PID_LAB03_control/build-teensy36/*
+lab_3_propeller_arm_position_control_II/6302_SPINUP/build-teensy36/*
 
 # file type
 **.swp
