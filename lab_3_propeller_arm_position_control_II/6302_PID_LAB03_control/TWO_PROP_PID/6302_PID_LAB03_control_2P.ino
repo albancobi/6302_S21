@@ -9,12 +9,12 @@ LIB6302_ADC(64);  // ADC sample buffer
 #define togglePeriod 2.0 // toggles between +/- every period
 #define theta_0 0.0  // Angle linearized about horizontal, adjust.
 #define cmdNom1 0.5  // Motor cmd to hold propeller at theta_0.
-#define cmdNom2 0.5 // Motor cmd to hold second prop 
+#define cmdNom2 0.52 // Motor cmd to hold second prop 
 #define angleScale 6.28     // (NOTE SIGN) Scale to make rotation = 2*pi
-#define mBack 5 // Number of sample points back for delta calc.
+#define mBack 8 // Number of sample points back for delta calc.
 #define controllerUpdatePeriod 1000 // Update period in microseconds.
 #define NumProps 2 // Number of props being used
-#define InputFilter 0 // Set to 1 to filter input
+#define InputFilter 1 // Set to 1 to filter input
 
 // End Constants for Users to Modify **************************************
 
@@ -49,8 +49,8 @@ String config_message = "\fB~" + sliders + monPlots + "\r";
 
 // Arm lab pin definitions
 #define anglePin A2
-#define motorPWM_T pwmB1_T
-#define motorNPWM_T pwmB2_T
+#define motorPWM_T pwmB2_T
+#define motorNPWM_T pwmB1_T
 #define motorPWM pwmB1
 #define motorNPWM pwmB2
 

@@ -7,7 +7,7 @@ LIB6302_ADC(500);  // ADC sample buffer of 500'
 // Constants for Users to Modify 
 // ************************************************************
 #define togglePeriod 1.0 // seconds between +/- toggling of desired value.
-#define nominalCmd 0.5 // Motor cmd for nominal speed.
+#define nominalCmd -0.5 // Motor cmd for nominal speed.
 #define nominalRPS 150.0 // Nominal Rotations per second.
 #define ScaleCMD 250.0 // The speed/cmd linearization estimate.
 #define controllerUpdatePeriod 1000 // Update period in microseconds.
@@ -41,7 +41,7 @@ String config_message = "\fB~" + sliders + monPlots + "\r";
 #define offsetMotorV  0.5 
 #define scaleMotorV 2.0   // vMotor 
 #define scaleMotorC 0.66  // iMotor = (V(iSense)/6)/0.25ohms = 0.66
-#define Rm 0.37
+#define Rm 0.35
 
 #define Bemf2RPS 1425
 float getBackEMF(int pinV, int pinC,int nAvg) {
